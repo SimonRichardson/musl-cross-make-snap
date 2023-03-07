@@ -14,20 +14,13 @@ confinement: classic
 
 architectures:
   - build-on: amd64
-  - build-on: arm64
 
 apps:
-  x86-64-linux-musl:
+  musl-gcc-x86-64:
     command: bin/x86_64-linux-musl-gcc
-  aarch64-linux-musl:
-    command: bin/aarch64-linux-musl-gcc
-  ppcc64le-linux-musl:
-    command: bin/powerpc64le-linux-musl-gcc
-  s390x-linux-musl:
-    command: bin/s390x-linux-musl-gcc
 
 parts:
-  x86-64-linux-musl:
+  bootstrap-musl-gcc:
     source: https://github.com/richfelker/musl-cross-make.git
     source-type: git
     plugin: make
@@ -41,21 +34,31 @@ parts:
       set -ex
 
       cat << EOF > config.mak
+
       TARGET = x86_64-linux-musl
       OUTPUT = $SNAPCRAFT_PART_BUILD
 
+      COMMON_CONFIG += CC="gcc -static --static" 
+      COMMON_CONFIG += CXX="g++ -static --static"
+
       COMMON_CONFIG += CFLAGS="-g0 -Os"
       COMMON_CONFIG += CXXFLAGS="-g0 -Os"
       COMMON_CONFIG += LDFLAGS="-s"
       COMMON_CONFIG += --disable-nls
+
+      GCC_CONFIG += --disable-libquadmath
+      GCC_CONFIG += --disable-decimal-float
+      GCC_CONFIG += --disable-libitm
+      GCC_CONFIG += --disable-fixed-point
+      GCC_CONFIG += --disable-lto
       EOF
 
+      make -j$(nproc)
       make install
 
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp -r $SNAPCRAFT_PART_BUILD/bin $SNAPCRAFT_PART_INSTALL
-
-  aarch64-linux-musl:
+  musl-gcc-x86-64:
+    after:
+      - bootstrap-musl-gcc
     source: https://github.com/richfelker/musl-cross-make.git
     source-type: git
     plugin: make
@@ -69,8 +72,12 @@ parts:
       set -ex
 
       cat << EOF > config.mak
-      TARGET = aarch64-linux-musl
+
+      TARGET = x86_64-linux-musl
       OUTPUT = $SNAPCRAFT_PART_BUILD
+
+      COMMON_CONFIG += CC="/root/parts/bootstrap-musl-gcc/build/bin/x86_64-linux-musl-gcc -static --static" 
+      COMMON_CONFIG += CXX="/root/parts/bootstrap-musl-gcc/build/bin/x86_64-linux-musl-g++ -static --static"
 
       COMMON_CONFIG += CFLAGS="-g0 -Os"
       COMMON_CONFIG += CXXFLAGS="-g0 -Os"
@@ -78,62 +85,7 @@ parts:
       COMMON_CONFIG += --disable-nls
       EOF
 
-      make install
-
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp -r $SNAPCRAFT_PART_BUILD/bin $SNAPCRAFT_PART_INSTALL
-
-  ppc64le-linux-musl:
-    source: https://github.com/richfelker/musl-cross-make.git
-    source-type: git
-    plugin: make
-    build-packages:
-      - gcc
-      - make
-      - build-essential
-      - wget
-      - curl
-    override-build: |
-      set -ex
-
-      cat << EOF > config.mak
-      TARGET = powerpc64le-linux-musl
-      OUTPUT = $SNAPCRAFT_PART_BUILD
-
-      COMMON_CONFIG += CFLAGS="-g0 -Os"
-      COMMON_CONFIG += CXXFLAGS="-g0 -Os"
-      COMMON_CONFIG += LDFLAGS="-s"
-      COMMON_CONFIG += --disable-nls
-      EOF
-
-      make install
-
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp -r $SNAPCRAFT_PART_BUILD/bin $SNAPCRAFT_PART_INSTALL
-
-  s390x-linux-musl:
-    source: https://github.com/richfelker/musl-cross-make.git
-    source-type: git
-    plugin: make
-    build-packages:
-      - gcc
-      - make
-      - build-essential
-      - wget
-      - curl
-    override-build: |
-      set -ex
-
-      cat << EOF > config.mak
-      TARGET = s390x-linux-musl
-      OUTPUT = $SNAPCRAFT_PART_BUILD
-
-      COMMON_CONFIG += CFLAGS="-g0 -Os"
-      COMMON_CONFIG += CXXFLAGS="-g0 -Os"
-      COMMON_CONFIG += LDFLAGS="-s"
-      COMMON_CONFIG += --disable-nls
-      EOF
-
+      make -j$(nproc)
       make install
 
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
